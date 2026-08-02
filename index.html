@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>广西水鱼</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#1a5c2a;color:#fff;min-height:100vh}
+.container{max-width:480px;margin:0 auto;padding:10px}
+h1{text-align:center;font-size:26px;padding:12px 0;text-shadow:2px 2px 4px rgba(0,0,0,.5)}
+.card{background:rgba(255,255,255,.1);border-radius:12px;padding:15px;margin:8px 0}
+.btn{display:block;width:100%;padding:14px;margin:5px 0;border:none;border-radius:10px;font-size:18px;font-weight:bold;cursor:pointer;text-align:center}
+.btn:active{transform:scale(.97)}
+.btn-orange{background:#ff6b35;color:#fff}
+.btn-gray{background:rgba(255,255,255,.2);color:#fff}
+.btn-green{background:#28a745;color:#fff}
+.btn-red{background:#dc3545;color:#fff}
+.btn-yellow{background:#ffc107;color:#333}
+.btn-sm{padding:8px 14px;font-size:14px;display:inline-block;width:auto;margin:3px}
+input{width:100%;padding:12px;margin:8px 0;border:none;border-radius:8px;font-size:18px;text-align:center;background:rgba(255,255,255,.9)}
+.ply{display:flex;align-items:center;justify-content:space-between;padding:10px;margin:4px 0;background:rgba(255,255,255,.1);border-radius:8px}
+.pname{font-size:18px;font-weight:bold}
+.pdrink{font-size:14px;opacity:.8}
+.badge{color:#333;padding:2px 8px;border-radius:10px;font-size:12px;margin-left:6px}
+.badge-d{background:#ffc107}
+.badge-a{background:#6c757d;color:#fff}
+.badge-y{background:#ffc107;color:#333}
+.cards{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:10px 0}
+.pcard{width:56px;height:84px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;font-weight:bold;cursor:pointer;background:#fff;color:#333;border:3px solid transparent;transition:all .2s}
+.pcard.sel{border-color:#ff6b35;transform:translateY(-4px);box-shadow:0 4px 12px rgba(255,107,53,.5)}
+.red{color:#d32f2f}
+.black{color:#212121}
+.hidden{display:none}
+.announce{text-align:center;padding:8px;font-size:15px;min-height:24px;font-weight:bold;color:#ffc107}
+.room-code{text-align:center;font-size:44px;font-weight:bold;letter-spacing:8px;margin:12px 0;color:#ffc107}
+.res-item{padding:10px;margin:5px 0;border-radius:8px;background:rgba(255,255,255,.15)}
+.res-w{background:rgba(40,167,69,.4)}
+.res-l{background:rgba(220,53,69,.4)}
+.actions{display:flex;gap:5px;flex-wrap:wrap}
+.actions .btn{flex:1;min-width:65px}
+.section{margin:6px 0}
+[role=status]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🃏 广西水鱼</h1>
+<div class="announce" role="alert" aria-live="assertive" id="announce"></div>
+<div role="status" aria-live="polite" id="sr"></div>
+
+<div id="menu">
+  <div class="card">
+    <input id="nameInp" placeholder="你的名字" maxlength="8" aria-label="输入名字">
+    <button class="btn btn-orange" onclick="create()" aria-label="创建房间">创建房间</button>
+    <button class="btn btn-gray" onclick="showJoin()" aria-label="加入房间">加入房间</button>
+    <button class="btn btn-gray" onclick="localGame()" aria-label="单机模式，无需联网">📱 单机模式（无需联网）</button>
+  </div>
+</div>
+
+<div id="joinPop" class="hidden card">
+  <input id="codeInp" placeholder="4位房间号" maxlength="4" inputmode="numeric" aria-label="房间号">
+  <button class="btn btn-orange" onclick="join()">加入</button>
+  <button class="btn btn-gray" onclick="closeJoin()">取消</button>
+</div>
+
+<div id="room" class="hidden">
+  <div class="card" style="text-align:center">
+    <div class="room-code" id="codeDisp"></div>
+    <button class="btn btn-sm btn-gray" onclick="copyCode()" aria-label="复制房间号">📋 复制</button>
+  </div>
+  <div class="card"><h3>玩家</h3><div id="plist" role="list"></div></div>
+  <div class="card section">
+    <button class="btn btn-sm btn-yellow" id="btnAI" onclick="addAI()">➕ 加AI</button>
+    <button class="btn btn-sm btn-orange" id="btnStart" style="display:none" onclick="startGame()">🎴 发牌</button>
+  </div>
+</div>
+
+<div id="group" class="hidden">
+  <div class="card">
+    <h3 id="gTitle" aria-live="polite">选2张当头牌</h3>
+    <div class="cards" id="gCards"></div>
+  </div>
+  <button class="btn btn-orange" id="btnG" onclick="confirmG()" disabled>确认摆牌</button>
+</div>
+
+<div id="action" class="hidden">
+  <div class="card"><h3>选择操作</h3>
+    <div class="actions">
+      <button class="btn btn-gray" onclick="doAction('walk')">走水</button>
+      <button class="btn btn-orange" onclick="doAction('attack')">明攻</button>
+      <button class="btn btn-yellow" onclick="doAction('dark')">暗攻</button>
+      <button class="btn btn-red" onclick="doAction('force')">强攻</button>
+    </div>
+  </div>
+</div>
+
+<div id="dealerP" class="hidden"><div class="card" id="dealerPc"></div></div>
+
+<div id="result" class="hidden">
+  <div class="card" id="resultC"></div>
+  <button class="btn btn-orange" onclick="send({action:'start'})">下一局</button>
+</div>
+
+<div id="localSetup" class="hidden card">
+  <h3>单机模式 - 几人玩？</h3>
+  <div class="actions" id="localBtns"></div>
+</div>
+
+<div id="localPlay" class="hidden">
+  <div class="card"><h3 id="localTitle"></h3><div id="localContent"></div></div>
+</div>
+</div>
+
+<script>
+// ============ 牌局引擎 ============
+const SUITS=['S','H','C','D'],SUIT_SYM={'S':'♠','H':'♥','C':'♣','D':'♦'},SUIT_R={'S':4,'H':3,'C':2,'D':1};
+const RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const RV={'A':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':10,'Q':10,'K':10};
+const RO={'A':14,'K':13,'Q':12,'J':11,'10':10,'9':9,'8':8,'7':7,'6':6,'5':5,'4':4,'3':3,'2':2};
+function mkDeck(){let d=[];for(let r of RANKS)for(let s of SUITS)d.push({r,s});return d}
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function cg(r1,s1,r2,s2){let p=(RV[r1]+RV[r2])%10,ip=r1===r2,pr=ip?RO[r1]:0;let mr,ms;if(RO[r1]>=RO[r2]){mr=RO[r1];ms=SUIT_R[s1]}else{mr=RO[r2];ms=SUIT_R[s2]}return{p,ip,pr,mr,ms}}
+function handType(cards){
+  let g1=cg(cards[0].r,cards[0].s,cards[1].r,cards[1].s),g2=cg(cards[2].r,cards[2].s,cards[3].r,cards[3].s);
+  function stronger(a,b){if(a.ip&&!b.ip)return true;if(b.ip&&!a.ip)return false;if(a.ip&&b.ip)return a.pr>=b.pr;if(a.p!==b.p)return a.p>=b.p;if(a.mr!==b.mr)return a.mr>=b.mr;return a.ms>=b.ms}
+  if(!stronger(g1,g2))[g1,g2]=[g2,g1];
+  let isSup=cards.every(c=>c.r===cards[0].r),isWF=g1.ip&&g2.ip&&!isSup,isSP=(g1.ip&&!g2.ip)||(!g1.ip&&g2.ip),isDZ=g1.p===0&&g2.p===0&&!isSup;
+  let rs=new Set(cards.map(c=>c.r)),isFB=rs.size===4&&[...rs].every(x=>['10','J','Q','K'].includes(x));
+  return{g1,g2,isSup,isWF,isSP,isDZ,isFB}
+}
+function cmpG(g1,g2){if(g1.ip&&!g2.ip)return 1;if(g2.ip&&!g1.ip)return-1;if(g1.ip&&g2.ip){if(g1.pr>g2.pr)return 1;if(g1.pr<g2.pr)return-1;return 0}if(g1.p>g2.p)return 1;if(g1.p<g2.p)return-1;if(g1.mr>g2.mr)return 1;if(g1.mr<g2.mr)return-1;if(g1.ms>g2.ms)return 1;if(g1.ms<g2.ms)return-1;return 0}
+function hd(ht){if(ht.isSup)return '至尊水鱼';if(ht.isWF)return '水鱼';if(ht.isDZ)return '双麻麻';if(ht.isFB)return '四大麻';if(ht.isSP)return '单对子';return '普通点数'}
+function aiBest(cards){let best=null,bs=-1;for(let i=0;i<4;i++)for(let j=i+1;j<4;j++){let ti=[0,1,2,3].filter(x=>x!==i&&x!==j);let hc=[cards[i],cards[j]],tc=[cards[ti[0]],cards[ti[1]]],ht=handType([...hc,...tc]);let s=0;if(ht.isSup)s=500+ht.g1.pr;else if(ht.isWF)s=400+ht.g1.pr+ht.g2.pr;else if(ht.isDZ)s=50;else if(ht.isSP)s=300+ht.g1.pr+ht.g2.p;else s=ht.g1.p*10+ht.g2.p;if(s>bs){bs=s;best={hi:[i,j],hc,tc,ht}}}if(!best){best={hi:[0,1],hc:[cards[0],cards[1]],tc:[cards[2],cards[3]],ht:handType(cards)}}return best}
+function aiAct(ht){if(ht.isSup||ht.isWF)return 'force';if(ht.isSP){let r=Math.random();if(r<0.4)return 'dark';if(r<0.8)return 'force';return 'attack'}let g1p=ht.g1.p,g2p=ht.g2.p;if(g1p>=8&&g2p>=5)return Math.random()<0.4?'dark':'force';if(g1p<=3&&g2p<=2)return 'walk';if(ht.isDZ)return 'walk';return 'attack'}
+
+// ============ 界面 ============
+let roomCode='',myName='',myCards=[],selHead=[],game={players:[],dealerIdx:0,phase:'wait',hands:{},groupings:{},actions:{},results:[],drinks:{}};
+let isLocal=false,localPlayers=[],localTurn=0;
+
+function A(text){document.getElementById('announce').textContent=text;document.getElementById('sr').textContent=text}
+function $_(id){return document.getElementById(id)}
+function suitSym(s){return SUIT_SYM[s]}
+function cardHTML(c,i,clk){let cls='pcard';if(clk&&selHead.includes(i))cls+=' sel';let color=c.s==='H'||c.s==='D'?'red':'black';let onclick=clk?`onclick="toggleC(${i})"`:'';return`<div class="${cls} ${color}" ${onclick} role="button" aria-label="${['黑桃','红桃','梅花','方块'][SUITS.indexOf(c.s)]}${c.r}${selHead.includes(i)?'，已选中':''}" tabindex="0">${suitSym(c.s)}<div>${c.r}</div></div>`}
+
+function toggleC(i){if(selHead.includes(i))selHead=selHead.filter(x=>x!==i);else if(selHead.length<2)selHead.push(i);renderG();if(selHead.length===2){$_('btnG').disabled=false;A('已选2张，确认摆牌')}else{$_('btnG').disabled=true}}
+
+function renderG(){let h='';game.hands[myName].forEach((c,i)=>h+=cardHTML(c,i,true));$_('gCards').innerHTML=h;if(selHead.length===2){let tail=[0,1,2,3].filter(i=>!selHead.includes(i));let hc=[game.hands[myName][selHead[0]],game.hands[myName][selHead[1]]];let tc=[game.hands[myName][tail[0]],game.hands[myName][tail[1]]];let hp=(RV[hc[0].r]+RV[hc[1].r])%10,tp=(RV[tc[0].r]+RV[tc[1].r])%10;$_('gTitle').textContent=`头牌${hp}点 | 尾牌${tp}点 (${hp>=tp?'✅':'❌摆反'})`}}
+
+function confirmG(){if(selHead.length!==2)return;let tail=[0,1,2,3].filter(i=>!selHead.includes(i));let hc=[game.hands[myName][selHead[0]],game.hands[myName][selHead[1]]],tc=[game.hands[myName][tail[0]],game.hands[myName][tail[1]]];let ht=handType([...hc,...tc]);game.groupings[myName]={hc,tc,ht};A(`摆牌: ${hd(ht)}，头${ht.g1.p}点 尾${ht.g2.p}点`);afterGroup()}
+
+function afterGroup(){if(isLocal){if(Object.keys(game.groupings).length===localPlayers.length){nextPhase()}}else{send({action:'group',head:game.groupings[myName].hi})}}
+
+function doAction(act){game.actions[myName]=act;if(isLocal){A(`你选了${act==='walk'?'走水':act==='attack'?'明攻':act==='dark'?'暗攻':'强攻'}`);nextAction()}else{send({action:'action',choice:act})}}
+
+function nextPhase(){let all=localPlayers,dp=localPlayers[game.dealerIdx];if(game.phase==='grouping'){let done=Object.keys(game.groupings).length===all.length;if(!done)return;game.phase='action';for(let p of all){if(p!==dp){$_('action').classList.remove('hidden');A(p+'，选择操作');return}}}if(game.phase==='action'){let done=Object.keys(game.actions).length===all.length-1;if(!done)return;resolve()}if(game.phase==='result'){game.dealerIdx=(game.dealerIdx+1)%all.length;game.hands={};game.groupings={};game.actions={};game.results=[];game.phase='wait';renderRoom();$_('result').classList.add('hidden');$_('room').classList.remove('hidden');A('下一局，庄家: '+game.players[game.dealerIdx].name)}}
+
+function resolve(){let all=localPlayers,dp=all[game.dealerIdx];game.results=[];let allCards={};
+  for(let p of all){
+    if(p===dp)continue;
+    let act=game.actions[p]||'attack',pt=game.groupings[p]?.ht||{},dt=game.groupings[dp]?.ht||{};
+    let r1=cmpG(pt.g1,dt.g1),r2=cmpG(pt.g2,dt.g2);
+    let mult=1;if(act==='dark'||act==='force')mult=Math.max(mult,2);if(pt.isWF)mult=Math.max(mult,2);if(pt.isSup)mult=Math.max(mult,3);if(dt.isWF)mult=Math.max(mult,2);if(dt.isSup)mult=Math.max(mult,3);
+    let ps=pt.isDZ&&dt.isWF&&!dt.isSup,ds=dt.isDZ&&pt.isWF&&!pt.isSup;
+    if(ps){game.drinks[dp]=(game.drinks[dp]||0)+Math.max(mult,2);game.results.push({p,name:p,result:'double_zero_win',dd:Math.max(mult,2),desc:'双麻麻反杀水鱼'})}
+    else if(ds){game.drinks[p]=(game.drinks[p]||0)+Math.max(mult,2);game.results.push({p,name:p,result:'double_zero_lose',d:Math.max(mult,2),desc:'庄家双麻麻反杀'})}
+    else if(r1===1&&r2===1){game.drinks[dp]=(game.drinks[dp]||0)+mult;game.results.push({p,name:p,result:'win',dd:mult})}
+    else if(r1===-1&&r2===-1){game.drinks[p]=(game.drinks[p]||0)+mult;game.results.push({p,name:p,result:'lose',d:mult})}
+    else{game.results.push({p,name:p,result:'tie'})}
+  }
+  for(let p of all){if(game.groupings[p])allCards[p]={name:p,head:game.groupings[p].hc,tail:game.groupings[p].tc,display:hd(game.groupings[p].ht),isD:p===dp}}
+  showResult(allCards,game.results);game.phase='result';
+}
+
+function showResult(ac,rs){let h='<h3>结果</h3>';
+  for(let pid in ac){let a=ac[pid];h+=`<div class="res-item"><b>${a.name}</b> ${a.isD?'(庄)':''} - ${a.display}<br>头: ${cardHTML(a.head[0])} ${cardHTML(a.head[1])} | 尾: ${cardHTML(a.tail[0])} ${cardHTML(a.tail[1])}</div>`}
+  rs.forEach(r=>{let cls='res-item',icon='🤝',desc=r.desc||'';let d=(r.d||0)+(r.dd||0);if(r.result.includes('win')){cls+=' res-w';icon='🏆'}if(r.result.includes('lose')){cls+=' res-l';icon='🍺'}if(r.result==='walk'){cls+=' res-l';icon='🏳️'}h+=`<div class="${cls}"><b>${r.name}</b> ${icon} ${desc} ${d?'罚'+d+'杯':''}</div>`});
+  $_('resultC').innerHTML=h;$_('result').classList.remove('hidden');$_('action').classList.add('hidden');$_('group').classList.add('hidden');$_('room').classList.add('hidden');
+  let sum=rs.map(r=>r.name+(r.result==='tie'?'平局':r.result.includes('win')?'赢':'输')).join('，');A(sum||'本局结束')
+}
+
+function renderRoom(){let h='';game.players.forEach((p,i)=>{let b='';if(i===game.dealerIdx)b='<span class="badge badge-d">庄</span>';h+=`<div class="ply"><span class="pname">${p.name}${b}</span><span class="pdrink">🍺×${game.drinks[p.name]||0}</span></div>`});$_('plist').innerHTML=h;if(myName===game.players[game.dealerIdx]?.name){$_('btnStart').style.display='inline-block'}}
+
+function startLocal(){$_('localSetup').classList.add('hidden');$_('localPlay').classList.remove('hidden');$_('menu').classList.add('hidden');
+  game={players:localPlayers.map(n=>({name:n})),dealerIdx:0,phase:'wait',hands:{},groupings:{},actions:{},results:[],drinks:{}};
+  localPlayers.forEach(n=>game.drinks[n]=0);
+  dealAndPlay();}
+
+function dealAndPlay(){let deck=shuffle(mkDeck());game.hands={};game.groupings={};game.actions={};game.results=[];game.phase='dealing';
+  localPlayers.forEach((p,i)=>{game.hands[p]=deck.slice(i*4,i*4+4)});
+  game.phase='grouping';myCards=game.hands[myName];selHead=[];
+  $_('room').classList.add('hidden');$_('group').classList.remove('hidden');
+  renderG();$_('btnG').disabled=true;A(`发牌完成，${game.players[game.dealerIdx].name}是庄家，你拿4张牌，选2张当头牌`);
+  if(myName!==localPlayers[game.dealerIdx]){setTimeout(()=>A('选2张头牌，头≥尾'),1000)}}
+
+function nextAction(){let all=localPlayers,dp=all[game.dealerIdx];$_('action').classList.add('hidden');
+  if(Object.keys(game.actions).length===all.length-1){game.phase='action-done';resolve();return}
+  for(let p of all){if(p!==dp&&!game.actions[p]){$_('action').classList.remove('hidden');A(p+'，选择操作');return}}}
+
+
+// ============ 联网版 (WebSocket + 简单中继) ============
+let ws=null;
+
+function send(msg){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(msg))}
+
+function connectWS(){
+  // 尝试连接本地或公网服务器
+  let host=localStorage.getItem('ws_host');
+  if(!host){
+    // 默认用本地测试，部署后用户可改
+    host=window.location.hostname||'localhost';
+  }
+  let proto=window.location.protocol==='https:'?'wss:':'ws:';
+  let port=parseInt(window.location.port)||(proto==='wss:'?443:80);
+  let wsPort=proto==='wss:'?443:port+1;
+  ws=new WebSocket(proto+'//'+host+':'+wsPort);
+  ws.onopen=()=>A('已连接');
+  ws.onmessage=e=>handleWS(JSON.parse(e.data));
+  ws.onclose=()=>A('断开，刷新重连');
+  ws.onerror=()=>A('连接失败，试试单机模式');
+}
+
+function handleWS(msg){
+  if(msg.type==='created'){roomCode=msg.room_code;$_('codeDisp').textContent=roomCode;$_('menu').classList.add('hidden');$_('room').classList.remove('hidden');A('房间'+roomCode.split('').join(' '))}
+  if(msg.type==='joined'){$_('codeDisp').textContent=roomCode;$_('joinPop').classList.add('hidden');$_('menu').classList.add('hidden');$_('room').classList.remove('hidden');A('已加入')}
+  if(msg.type==='state'){game.players=msg.players.map(p=>({name:p.name,isAI:p.is_ai}));game.dealerIdx=msg.players.findIndex(p=>p.is_dealer);game.drinks={};msg.players.forEach(p=>game.drinks[p.name]=p.drinks);renderRoom();if(msg.state==='grouping'&&msg.your_cards){myCards=msg.your_cards;selHead=[];hideAll();$_('group').classList.remove('hidden');renderG();$_('btnG').disabled=true;A('选2张头牌')}if(msg.state==='action'){if(msg.you_are_dealer){hideAll();$_('room').classList.remove('hidden')}else{hideAll();$_('action').classList.remove('hidden');A('选操作')}}if(msg.state==='result'){hideAll();showResult(msg.all_cards,msg.results)}}
+  if(msg.type==='dealt'){myCards=msg.cards;A('发牌，庄:'+msg.dealer_name)}
+  if(msg.type==='grouped'){A(msg.display+' 头'+msg.g1.point+'点 尾'+msg.g2.point+'点'+(msg.wulong?' 乌龙!':''))}
+  if(msg.type==='choose_action'){hideAll();$_('action').classList.remove('hidden');A('选操作')}
+  if(msg.type==='walk_request'){hideAll();$_('dealerP').classList.remove('hidden');$_('dealerPc').innerHTML='<h3>'+msg.from+' 走水</h3><button class="btn btn-green" onclick="send({action:\'dealer_respond\',response:\'accept_walk\',target:\''+msg.from+'\'})">同意</button><button class="btn btn-red" onclick="send({action:\'dealer_respond\',response:\'reject_walk\',target:\''+msg.from+'\'})">拒绝</button>'}
+  if(msg.type==='force_reveal')A(msg.from+' 强攻亮牌')
+  if(msg.type==='ai_action')A('AI '+msg.name+' '+msg.action)
+  if(msg.type==='ai_joined')A('AI '+msg.name+' 加入')
+  if(msg.type==='error')A(msg.msg)
+}
+
+function create(){myName=$_('nameInp').value.trim()||'玩家';connectWS();setTimeout(()=>send({action:'create',name:myName}),500)}
+function showJoin(){$_('joinPop').classList.remove('hidden')}
+function closeJoin(){$_('joinPop').classList.add('hidden')}
+function join(){myName=$_('nameInp').value.trim()||'玩家';roomCode=$_('codeInp').value.trim();connectWS();setTimeout(()=>send({action:'join',name:myName,code:roomCode}),500)}
+function startGame(){send({action:'start'})}
+function addAI(){send({action:'add_ai'})}
+function copyCode(){navigator.clipboard.writeText(roomCode);A('已复制')}
+function hideAll(){['menu','room','group','action','dealerP','result','joinPop'].forEach(id=>$_(id).classList.add('hidden'))}
+
+function localGame(){
+  $_('menu').classList.add('hidden');$_('localSetup').classList.remove('hidden');
+  let h='';for(let i=2;i<=7;i++){h+=`<button class="btn ${i<=4?'btn-orange':'btn-gray'}" onclick="setupLocal(${i})" aria-label="${i}人局">${i}人局</button>`}
+  $_('localBtns').innerHTML=h;
+}
+
+function setupLocal(n){
+  localPlayers=[];isLocal=true;
+  for(let i=1;i<=n;i++)localPlayers.push('玩家'+i);
+  myName='玩家1';game={players:localPlayers.map(n=>({name:n})),dealerIdx:0,phase:'wait',hands:{},groupings:{},actions:{},results:[],drinks:{}};
+  localPlayers.forEach(n=>game.drinks[n]=0);
+  renderRoom();$_('localSetup').classList.add('hidden');$_('room').classList.remove('hidden');
+  A('单机模式，玩家1是庄家(你)，轮流操作');
+}
+
+// 尝试联网，失败则可用单机
+connectWS();
+</script>
+</body>
+</html>
