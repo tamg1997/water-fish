@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>广西水鱼</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -10,7 +10,7 @@ body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#1a5c2a;c
 .container{max-width:480px;margin:0 auto;padding:10px}
 h1{text-align:center;font-size:26px;padding:12px 0;text-shadow:2px 2px 4px rgba(0,0,0,.5)}
 .card{background:rgba(255,255,255,.1);border-radius:12px;padding:15px;margin:8px 0}
-.btn{display:block;width:100%;padding:14px;margin:5px 0;border:none;border-radius:10px;font-size:18px;font-weight:bold;cursor:pointer;text-align:center}
+.btn{display:block;width:100%;padding:14px;margin:5px 0;border:none;border-radius:10px;font-size:18px;font-weight:bold;cursor:pointer;text-align:center;touch-action:manipulation}
 .btn:active{transform:scale(.97)}
 .btn-orange{background:#ff6b35;color:#fff}
 .btn-gray{background:rgba(255,255,255,.2);color:#fff}
@@ -24,7 +24,7 @@ input{width:100%;padding:12px;margin:8px 0;border:none;border-radius:8px;font-si
 .badge{color:#333;padding:2px 8px;border-radius:10px;font-size:12px;margin-left:6px}
 .badge-d{background:#ffc107}
 .cards{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:10px 0}
-.pcard{width:56px;height:84px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;font-weight:bold;cursor:pointer;background:#fff;color:#333;border:3px solid transparent;transition:all .2s}
+.pcard{width:56px;height:84px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;font-weight:bold;cursor:pointer;background:#fff;color:#333;border:3px solid transparent;transition:all .2s;touch-action:manipulation}
 .pcard.sel{border-color:#ff6b35;transform:translateY(-4px);box-shadow:0 4px 12px rgba(255,107,53,.5)}
 .red{color:#d32f2f}
 .black{color:#212121}
@@ -40,16 +40,16 @@ input{width:100%;padding:12px;margin:8px 0;border:none;border-radius:8px;font-si
 </head>
 <body>
 <div class="container">
-<h1>🃏 广西水鱼</h1>
+<h1>广西水鱼</h1>
 <div class="announce" role="alert" aria-live="assertive" id="announce"></div>
 <div role="status" aria-live="polite" id="sr"></div>
 
 <div id="menu">
   <div class="card">
     <input id="nameInp" placeholder="你的名字" maxlength="8" aria-label="输入名字" value="玩家">
-    <label for="numAI" style="display:block;margin-top:8px;font-size:16px">AI对手数量 (1~6个)</label>
+    <label for="numAI" style="display:block;margin-top:8px;font-size:16px">AI对手数量 (1到6个)</label>
     <input id="numAI" type="number" min="1" max="6" value="3" aria-label="AI数量">
-    <button class="btn btn-orange" onclick="startSingle()" aria-label="开始单机游戏">🎴 开始单机游戏</button>
+    <button class="btn btn-orange" id="btnStartSingle">开始单机游戏</button>
   </div>
 </div>
 
@@ -66,18 +66,46 @@ input{width:100%;padding:12px;margin:8px 0;border:none;border-radius:8px;font-si
 
 <div id="resultArea" class="hidden">
   <div class="card" id="resultContent"></div>
-  <button class="btn btn-orange" onclick="nextRound()">下一局</button>
-  <button class="btn btn-gray" onclick="backMenu()">返回菜单</button>
+  <button class="btn btn-orange" id="btnNextRound">下一局</button>
+  <button class="btn btn-gray" id="btnBackMenu">返回菜单</button>
 </div>
 </div>
 
 <script>
+(function(){
+"use strict";
+
 // ============ 牌局引擎 ============
 var SUITS=["S","H","C","D"], SUIT_SYM={S:"♠",H:"♥",C:"♣",D:"♦"}, SUIT_R={S:4,H:3,C:2,D:1};
 var SUIT_CN={S:"黑桃",H:"红桃",C:"梅花",D:"方块"};
 var RANKS=["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
 var RV={A:1,"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"10":10,J:10,Q:10,K:10};
 var RO={A:14,K:13,Q:12,J:11,"10":10,"9":9,"8":8,"7":7,"6":6,"5":5,"4":4,"3":3,"2":2};
+var players=[], dealerIdx=0, hands={}, groupings={}, actions={}, drinks={};
+var myName="", myCards=[], selHead=[], phase="";
+var btnStartSingle, btnNextRound, btnBackMenu, announceEl, srEl;
+var menuEl, gameAreaEl, resultAreaEl, phaseTitleEl, phaseContentEl;
+var plistEl, resultContentEl, gCardsEl, nameInpEl, numAIEl;
+
+function initDom(){
+  btnStartSingle = document.getElementById("btnStartSingle");
+  btnNextRound = document.getElementById("btnNextRound");
+  btnBackMenu = document.getElementById("btnBackMenu");
+  announceEl = document.getElementById("announce");
+  srEl = document.getElementById("sr");
+  menuEl = document.getElementById("menu");
+  gameAreaEl = document.getElementById("gameArea");
+  resultAreaEl = document.getElementById("resultArea");
+  phaseTitleEl = document.getElementById("phaseTitle");
+  phaseContentEl = document.getElementById("phaseContent");
+  plistEl = document.getElementById("plist");
+  resultContentEl = document.getElementById("resultContent");
+  gCardsEl = document.getElementById("gCards");
+  nameInpEl = document.getElementById("nameInp");
+  numAIEl = document.getElementById("numAI");
+}
+
+function A(t){ announceEl.textContent=t; srEl.textContent=t; }
 
 function mkDeck(){var d=[];for(var i=0;i<RANKS.length;i++){var r=RANKS[i];for(var j=0;j<SUITS.length;j++){d.push({r:r,s:SUITS[j]})}}return d}
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
@@ -149,39 +177,26 @@ function aiAction(ht){
   return "attack"
 }
 
-// ============ 游戏状态 ============
-var players=[], dealerIdx=0, hands={}, groupings={}, actions={}, drinks={};
-var myName="", myCards=[], selHead=[], phase="";
+function suitSym(s){return SUIT_SYM[s]}
+function suitCN(s){return SUIT_CN[s]}
 
-function A(t){document.getElementById("announce").textContent=t;document.getElementById("sr").textContent=t}
-function E(id){return document.getElementById(id)}
-
+// ============ 界面渲染 ============
 function cardHTML(c,i,clickable){
   var cls="pcard", color=(c.s==="H"||c.s==="D")?"red":"black";
   if(clickable&&selHead.indexOf(i)>=0)cls+=" sel";
-  var label=SUIT_CN[c.s]+c.r+(clickable&&selHead.indexOf(i)>=0?"，已选中":"");
-  var onclick=clickable?" onclick="toggleCard("+i+")"":"";
-  return '<div class="'+cls+' '+color+'"'+onclick+' role="button" aria-label="'+label+'" tabindex="0">'+SUIT_SYM[c.s]+'<div>'+c.r+'</div></div>'
-}
-
-function toggleCard(i){
-  var idx=selHead.indexOf(i);
-  if(idx>=0)selHead.splice(idx,1);else if(selHead.length<2)selHead.push(i);
-  renderGrouping();
-  E("btnConfirm").disabled=selHead.length!==2;
-  if(selHead.length===2)A("已选2张当头牌，点确认摆牌");
-  else A("请选2张牌当头牌")
+  var label=suitCN(c.s)+c.r+(clickable&&selHead.indexOf(i)>=0?"，已选中":"");
+  return '<div class="'+cls+' '+color+'" data-card="'+i+'" role="button" aria-label="'+label+'" tabindex="0">'+suitSym(c.s)+'<div>'+c.r+'</div></div>'
 }
 
 function renderGrouping(){
   var h=""; for(var i=0;i<4;i++)h+=cardHTML(myCards[i],i,true);
-  E("gCards").innerHTML=h;
+  gCardsEl.innerHTML=h;
   if(selHead.length===2){
     var tail=[0,1,2,3].filter(function(x){return selHead.indexOf(x)<0});
     var hc=[myCards[selHead[0]],myCards[selHead[1]]];
     var tc=[myCards[tail[0]],myCards[tail[1]]];
     var hp=(RV[hc[0].r]+RV[hc[1].r])%10, tp=(RV[tc[0].r]+RV[tc[1].r])%10;
-    E("phaseTitle").textContent="头牌"+hp+"点 | 尾牌"+tp+"点 "+(hp>=tp?"✅":"❌摆反!")
+    phaseTitleEl.textContent="头牌"+hp+"点 | 尾牌"+tp+"点 "+(hp>=tp?"✅":"❌摆反!")
   }
 }
 
@@ -191,21 +206,21 @@ function renderPlayers(){
     var p=players[i], b=i===dealerIdx?'<span class="badge badge-d">庄</span>':"";
     h+='<div class="ply"><span class="pname">'+p+b+'</span><span class="pdrink">🍺×'+(drinks[p]||0)+'</span></div>'
   }
-  E("plist").innerHTML=h
+  plistEl.innerHTML=h
 }
 
-// ============ 单机游戏流程 ============
+// ============ 游戏流程 ============
 function startSingle(){
-  myName=E("nameInp").value.trim()||"玩家";
-  var n=parseInt(E("numAI").value)||3;
+  myName=nameInpEl.value.trim()||"玩家";
+  var n=parseInt(numAIEl.value)||3;
   if(n<1)n=1;if(n>6)n=6;
   players=[myName];
   for(var i=1;i<=n;i++)players.push("AI"+i);
   dealerIdx=0; hands={}; groupings={}; actions={}; drinks={};
   for(var p=0;p<players.length;p++)drinks[players[p]]=0;
-  E("menu").classList.add("hidden");
-  E("gameArea").classList.remove("hidden");
-  E("resultArea").classList.add("hidden");
+  menuEl.classList.add("hidden");
+  gameAreaEl.classList.remove("hidden");
+  resultAreaEl.classList.add("hidden");
   renderPlayers();
   A("单机模式，你是庄家，"+n+"个AI对手，开始发牌");
   setTimeout(dealAndPlay,800)
@@ -217,10 +232,27 @@ function dealAndPlay(){
   for(var i=0;i<players.length;i++)hands[players[i]]=deck.slice(i*4,i*4+4);
   myCards=hands[myName]; selHead=[];
   phase="grouping";
-  E("phaseTitle").textContent="选2张牌当头牌（头牌≥尾牌）";
-  E("phaseContent").innerHTML='<div class="cards" id="gCards"></div><button class="btn btn-orange" id="btnConfirm" onclick="confirmGroup()" disabled>确认摆牌</button>';
+  phaseTitleEl.textContent="选2张牌当头牌（头牌≥尾牌）";
+  phaseContentEl.innerHTML='<div class="cards" id="gCards"></div><button class="btn btn-orange" id="btnConfirm" disabled>确认摆牌</button>';
+  gCardsEl=document.getElementById("gCards");
+  var btnC=document.getElementById("btnConfirm");
+  btnC.addEventListener("click",confirmGroup);
   renderGrouping();
   A("发牌完成，你是庄家，请选2张当头牌")
+}
+
+// ============ 事件处理（事件委托） ============
+function handleCardClick(e){
+  var card=event.target.closest("[data-card]");
+  if(!card)return;
+  var i=parseInt(card.getAttribute("data-card"));
+  var idx=selHead.indexOf(i);
+  if(idx>=0)selHead.splice(idx,1);else if(selHead.length<2)selHead.push(i);
+  renderGrouping();
+  var btnC=document.getElementById("btnConfirm");
+  if(btnC)btnC.disabled=selHead.length!==2;
+  if(selHead.length===2)A("已选2张当头牌，点确认摆牌");
+  else A("请选2张牌当头牌")
 }
 
 function confirmGroup(){
@@ -230,11 +262,10 @@ function confirmGroup(){
   var tc=[myCards[tail[0]],myCards[tail[1]]];
   var ht=handType([hc[0],hc[1],tc[0],tc[1]]);
   var hp=(RV[hc[0].r]+RV[hc[1].r])%10, tp=(RV[tc[0].r]+RV[tc[1].r])%10;
-  if(hp<tp){A("头牌小于尾牌，摆反了！乌龙判输！请重新选");selHead=[];renderGrouping();E("btnConfirm").disabled=true;return}
+  if(hp<tp){A("头牌小于尾牌，摆反了！乌龙判输！请重新选");selHead=[];renderGrouping();var bc=document.getElementById("btnConfirm");if(bc)bc.disabled=true;return}
   groupings[myName]={hc:hc,tc:tc,ht:ht,hi:selHead};
-  E("phaseContent").innerHTML='<p>摆牌完成：'+hd(ht)+'，头'+hp+'点 尾'+tp+'点</p>';
+  phaseContentEl.innerHTML='<p>摆牌完成：'+hd(ht)+'，头'+hp+'点 尾'+tp+'点</p>';
   A("摆牌完成，等待AI摆牌");
-  // AI auto group
   for(var pi=0;pi<players.length;pi++){
     if(players[pi]===myName)continue;
     var best=aiBest(hands[players[pi]]);
@@ -249,16 +280,14 @@ function askAction(){
   phase="action";
   var dealer=players[dealerIdx];
   if(myName===dealer){
-    // Human is dealer: AI non-dealers auto-pick, then respond to walk/dark
     aiAllAct();
   }else{
-    // Human is non-dealer: pick action
-    E("phaseTitle").textContent="选择你的操作（庄家:"+dealer+"）";
-    E("phaseContent").innerHTML='<div class="actions">'+
-      '<button class="btn btn-gray" onclick="doMyAction(\'walk\')">走水</button>'+
-      '<button class="btn btn-orange" onclick="doMyAction(\'attack\')">明攻</button>'+
-      '<button class="btn btn-yellow" onclick="doMyAction(\'dark\')">暗攻</button>'+
-      '<button class="btn btn-red" onclick="doMyAction(\'force\')">强攻</button>'+
+    phaseTitleEl.textContent="选择你的操作（庄家:"+dealer+"）";
+    phaseContentEl.innerHTML='<div class="actions">'+
+      '<button class="btn btn-gray" data-act="walk">走水</button>'+
+      '<button class="btn btn-orange" data-act="attack">明攻</button>'+
+      '<button class="btn btn-yellow" data-act="dark">暗攻</button>'+
+      '<button class="btn btn-red" data-act="force">强攻</button>'+
       '</div>';
     A("你是闲家，庄家是"+dealer+"，请选择操作")
   }
@@ -267,14 +296,13 @@ function askAction(){
 function doMyAction(act){
   actions[myName]=act;
   var actCN={walk:"走水",attack:"明攻",dark:"暗攻",force:"强攻"};
-  E("phaseContent").innerHTML="<p>你选择了："+actCN[act]+"</p>";
+  phaseContentEl.innerHTML="<p>你选择了："+actCN[act]+"</p>";
   A("你选了"+actCN[act]+"，AI选择操作中");
   aiAllAct()
 }
 
 function aiAllAct(){
   var dealer=players[dealerIdx];
-  // AI non-dealer auto-pick
   for(var i=0;i<players.length;i++){
     var p=players[i];
     if(p===dealer||p===myName)continue;
@@ -285,10 +313,8 @@ function aiAllAct(){
     A(p+" 选择: "+actCN[act])
   }
   if(myName===dealer){
-    // Human dealer: check walk/dark
     checkDealerResponse();
   }else{
-    // AI dealer: auto-respond to walk/dark
     for(var j=0;j<players.length;j++){
       var q=players[j];
       if(q===dealer)continue;
@@ -303,28 +329,26 @@ function aiAllAct(){
 
 function checkDealerResponse(){
   var dealer=players[dealerIdx];
-  // Check walk requests
   for(var i=0;i<players.length;i++){
     var p=players[i];
     if(p===dealer)continue;
     if(actions[p]==="walk"){
-      E("phaseTitle").textContent=p+" 申请走水";
-      E("phaseContent").innerHTML=
-        '<button class="btn btn-green" onclick="respondWalk(\''+p+'\',\'accept\')">同意走水</button>'+
-        '<button class="btn btn-red" onclick="respondWalk(\''+p+'\',\'reject\')">拒绝，开牌！</button>';
+      phaseTitleEl.textContent=p+" 申请走水";
+      phaseContentEl.innerHTML=
+        '<button class="btn btn-green" data-respw="'+p+'" data-respa="accept">同意走水</button>'+
+        '<button class="btn btn-red" data-respw="'+p+'" data-respa="reject">拒绝，开牌！</button>';
       A(p+"申请走水，请决定");
       return;
     }
   }
-  // Check dark challenges
   for(var j=0;j<players.length;j++){
     var p2=players[j];
     if(p2===dealer)continue;
     if(actions[p2]==="dark"){
-      E("phaseTitle").textContent=p2+" 暗攻（盖牌比）";
-      E("phaseContent").innerHTML=
-        '<button class="btn btn-green" onclick="respondDark(\''+p2+'\',\'drink\')">认输喝1杯</button>'+
-        '<button class="btn btn-red" onclick="respondDark(\''+p2+'\',\'fight\')">接招开牌（2倍）</button>';
+      phaseTitleEl.textContent=p2+" 暗攻（盖牌比）";
+      phaseContentEl.innerHTML=
+        '<button class="btn btn-green" data-respd="'+p2+'" data-respd2="drink">认输喝1杯</button>'+
+        '<button class="btn btn-red" data-respd="'+p2+'" data-respd2="fight">接招开牌（2倍）</button>';
       A(p2+"暗攻，认输喝1杯或接招2倍");
       return;
     }
@@ -394,12 +418,12 @@ function showResult(rs){
     var r=rs[i], cls="res-item", icon="🤝", desc=r.desc||"", d=(r.d||0)+(r.dd||0);
     if(r.result==="win"){cls+=" res-w";icon="🏆"}
     if(r.result==="lose"){cls+=" res-l";icon="🍺"}
-    if(r.result==="walk"||r.result==="dark_drink"){icon="🏳️"}
+    if(r.result==="walk"||r.result==="dark_drink"){icon="🏳"}
     h+='<div class="'+cls+'"><b>'+r.name+'</b> '+icon+' '+desc+' '+(d?"罚"+d+"杯":"")+' 当前:🍺×'+(drinks[r.name]||0)+'</div>'
   }
-  E("resultContent").innerHTML=h;
-  E("gameArea").classList.add("hidden");
-  E("resultArea").classList.remove("hidden");
+  resultContentEl.innerHTML=h;
+  gameAreaEl.classList.add("hidden");
+  resultAreaEl.classList.remove("hidden");
   var sum=rs.map(function(r){return r.name+(r.result==="tie"?"平局":r.result==="win"?"赢":"输")}).join("，");
   A(sum||"本局结束")
 }
@@ -407,8 +431,8 @@ function showResult(rs){
 function nextRound(){
   dealerIdx=(dealerIdx+1)%players.length;
   hands={}; groupings={}; actions={};
-  E("resultArea").classList.add("hidden");
-  E("gameArea").classList.remove("hidden");
+  resultAreaEl.classList.add("hidden");
+  gameAreaEl.classList.remove("hidden");
   renderPlayers();
   var nxt=players[dealerIdx];
   A("下一局，庄家："+nxt+(nxt===myName?"（你）":""));
@@ -416,11 +440,53 @@ function nextRound(){
 }
 
 function backMenu(){
-  E("resultArea").classList.add("hidden");
-  E("gameArea").classList.add("hidden");
-  E("menu").classList.remove("hidden");
+  resultAreaEl.classList.add("hidden");
+  gameAreaEl.classList.add("hidden");
+  menuEl.classList.remove("hidden");
   players=[]; hands={}; groupings={}; actions={}; drinks={};
 }
+
+// ============ 全局事件委托 ============
+document.addEventListener("click", function(e){
+  var target=e.target;
+  
+  // Card clicks in grouping phase
+  var card=target.closest("[data-card]");
+  if(card){
+    handleCardClick(e);
+    return;
+  }
+  
+  // Action buttons (data-act)
+  var actBtn=target.closest("[data-act]");
+  if(actBtn){
+    doMyAction(actBtn.getAttribute("data-act"));
+    return;
+  }
+  
+  // Walk response buttons
+  var respW=target.closest("[data-respw]");
+  if(respW){
+    respondWalk(respW.getAttribute("data-respw"), respW.getAttribute("data-respa"));
+    return;
+  }
+  
+  // Dark response buttons
+  var respD=target.closest("[data-respd]");
+  if(respD){
+    respondDark(respD.getAttribute("data-respd"), respD.getAttribute("data-respd2"));
+    return;
+  }
+});
+
+// ============ 初始化 ============
+initDom();
+btnStartSingle.addEventListener("click", startSingle);
+btnNextRound.addEventListener("click", nextRound);
+btnBackMenu.addEventListener("click", backMenu);
+A("欢迎，请输入名字和AI数量，点击开始游戏");
+
+})();
 </script>
 </body>
 </html>
