@@ -204,7 +204,7 @@ function renderPlayers(){
   var h="";
   for(var i=0;i<players.length;i++){
     var p=players[i], b=i===dealerIdx?'<span class="badge badge-d">庄</span>':"";
-    h+='<div class="ply"><span class="pname">'+p+b+'</span><span class="pdrink">🍺×'+(drinks[p]||0)+'</span></div>'
+    h+='<div class="ply"><span class="pname">'+p+b+'</span><span class="pdrink">累计'+(drinks[p]||0)+'</span></div>'
   }
   plistEl.innerHTML=h
 }
@@ -271,7 +271,7 @@ function confirmGroup(){
     var best=aiBest(hands[players[pi]]);
     groupings[players[pi]]={hc:best.hc,tc:best.tc,ht:best.ht,hi:best.hi};
     var ahp=(RV[best.hc[0].r]+RV[best.hc[1].r])%10, atp=(RV[best.tc[0].r]+RV[best.tc[1].r])%10;
-    A(players[pi]+"摆牌: "+hd(best.ht)+" 头"+ahp+"点 尾"+atp+"点")
+    A(players[pi]+"摆牌: "+hd(best.ht)+" 头"+ahp+"尾"+atp)
   }
   setTimeout(askAction,1200)
 }
@@ -395,18 +395,18 @@ function doResolve(){
     var dDZkill=dt.isDZ&&pt.isWF&&!pt.isSup;
     if(pDZkill){
       drinks[dealer]=(drinks[dealer]||0)+Math.max(mult,2);
-      results.push({name:p,result:"win",desc:"双麻麻反杀水鱼!",dd:Math.max(mult,2)});
+      results.push({name:p,result:"win",desc:"双麻麻反杀水鱼",dd:Math.max(mult,2)});
     }else if(dDZkill){
       drinks[p]=(drinks[p]||0)+Math.max(mult,2);
-      results.push({name:p,result:"lose",desc:"庄家双麻麻反杀!",d:Math.max(mult,2)});
+      results.push({name:p,result:"lose",desc:"庄家双麻麻反杀",d:Math.max(mult,2)});
     }else if(r1===1&&r2===1){
       drinks[dealer]=(drinks[dealer]||0)+mult;
-      results.push({name:p,result:"win",dd:mult,desc:"两组全赢"});
+      results.push({name:p,result:"win",dd:mult,desc:"赢"});
     }else if(r1===-1&&r2===-1){
       drinks[p]=(drinks[p]||0)+mult;
-      results.push({name:p,result:"lose",d:mult,desc:"两组全输"});
+      results.push({name:p,result:"lose",d:mult,desc:"输"});
     }else{
-      results.push({name:p,result:"tie",desc:"一赢一输，平局"});
+      results.push({name:p,result:"tie",desc:"平局"});
     }
   }
   showResult(results)
@@ -415,13 +415,28 @@ function doResolve(){
 function showResult(rs){
   var h="<h3>本局结果</h3>";
   for(var i=0;i<rs.length;i++){
-    var r=rs[i], cls="res-item", icon="🤝", desc=r.desc||"", d=(r.d||0)+(r.dd||0);
-    if(r.result==="win"){cls+=" res-w";icon="🏆"}
-    if(r.result==="lose"){cls+=" res-l";icon="🍺"}
-    if(r.result==="walk"||r.result==="dark_drink"){icon="🏳"}
-    h+='<div class="'+cls+'"><b>'+r.name+'</b> '+icon+' '+desc+' '+(d?"罚"+d+"杯":"")+' 当前:🍺×'+(drinks[r.name]||0)+'</div>'
-  }
-  resultContentEl.innerHTML=h;
+    var r=rs[i], cls="res-item", d=(r.d||0)+(r.dd||0);
+    var line="";
+    if(r.result==="win"){
+      cls+=" res-w";
+      if(r.desc&&r.desc.indexOf("反杀")>=0)line=r.name+"："+r.desc+"，庄家罚"+d+"杯";
+      else line=r.name+"：赢，庄家罚"+d+"杯";
+    }else if(r.result==="lose"){
+      cls+=" res-l";
+      if(r.desc&&r.desc.indexOf("反杀")>=0)line=r.name+"："+r.desc+"，罚"+d+"杯";
+      else line=r.name+"：输，罚"+d+"杯";
+    }else if(r.result==="tie"){
+      line=r.name+"：平局";
+    }else if(r.result==="walk"){
+      line=r.name+"：走水成功";
+    }else if(r.result==="dark_drink"){
+      line=r.name+"：庄家认输喝1杯";
+    }else{
+      line=r.name+"："+(r.desc||"");
+    }
+    line+="（累计"+ (drinks[r.name]||0) +"杯）";
+    h+='<div class="'+cls+'"><b>'+line+'</b></div>';
+  }resultContentEl.innerHTML=h;
   gameAreaEl.classList.add("hidden");
   resultAreaEl.classList.remove("hidden");
   var sum=rs.map(function(r){return r.name+(r.result==="tie"?"平局":r.result==="win"?"赢":"输")}).join("，");
