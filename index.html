@@ -414,6 +414,20 @@ function doResolve(){
 
 function showResult(rs){
   var h="<h3>本局结果</h3>";
+  for(var pid in groupings){
+    var g=groupings[pid];
+    if(!g||!g.hc)continue;
+    var typeName=hd(g.ht);
+    var hp=(RV[g.hc[0].r]+RV[g.hc[1].r])%10, tp=(RV[g.tc[0].r]+RV[g.tc[1].r])%10;
+    var isD=pid===players[dealerIdx];
+    h+='<div class="res-item">';
+    h+='<b>'+pid+(isD?"（庄）":"")+'</b> '+typeName+' 头'+hp+'点 尾'+tp+'点';
+    h+='<div style="font-size:14px;margin-top:4px">';
+    h+='头牌: '+suitSym(g.hc[0].s)+g.hc[0].r+' '+suitSym(g.hc[1].s)+g.hc[1].r;
+    h+=' | 尾牌: '+suitSym(g.tc[0].s)+g.tc[0].r+' '+suitSym(g.tc[1].s)+g.tc[1].r;
+    h+='</div></div>';
+  }
+  h+='<hr style="margin:8px 0;opacity:.3">';
   for(var i=0;i<rs.length;i++){
     var r=rs[i], cls="res-item", d=(r.d||0)+(r.dd||0);
     var line="";
@@ -436,13 +450,22 @@ function showResult(rs){
     }
     line+="（累计"+ (drinks[r.name]||0) +"杯）";
     h+='<div class="'+cls+'"><b>'+line+'</b></div>';
-  }resultContentEl.innerHTML=h;
+  }
+  resultContentEl.innerHTML=h;
   gameAreaEl.classList.add("hidden");
   resultAreaEl.classList.remove("hidden");
-  var sum=rs.map(function(r){return r.name+(r.result==="tie"?"平局":r.result==="win"?"赢":"输")}).join("，");
-  A(sum||"本局结束")
+  var parts=[];
+  for(var k=0;k<rs.length;k++){
+    var r2=rs[k];
+    if(r2.result==="win")parts.push(r2.name+"赢");
+    else if(r2.result==="lose")parts.push(r2.name+"输");
+    else if(r2.result==="tie")parts.push(r2.name+"平");
+    else if(r2.result==="walk")parts.push(r2.name+"走水");
+    else if(r2.result==="dark_drink")parts.push(r2.name+"庄家认输");
+    else parts.push(r2.name+r2.desc);
+  }
+  A(parts.join("，"))
 }
-
 function nextRound(){
   dealerIdx=(dealerIdx+1)%players.length;
   hands={}; groupings={}; actions={};
